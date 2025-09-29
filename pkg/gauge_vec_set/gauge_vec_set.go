@@ -326,7 +326,7 @@ func (c *GaugeVecSet) Set(
 // in the same (index, group) bucket. If no groupLabels were configured, this behaves like Set.
 //
 // Use this for enum-like series where exactly one variant should be active within a group and inactive metrics
-// should be present. Prefer SetExclusiveInGroup if your metrics have high cardinality.
+// should be present. Prefer SetGroup if your metrics have high cardinality.
 func (c *GaugeVecSet) SetActiveInGroup(
 	value float64,
 	indexValues []string,
