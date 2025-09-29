@@ -158,7 +158,7 @@ import (
 )
 
 // We need this variable later to create the ConditionMetricsRecorder
-var OperatorConditionsGauge *ocg.OperatorConditionsGauge = nil
+var OperatorConditionsGauge *ocg.OperatorConditionsGauge
 
 func init() {
     OperatorConditionsGauge = ocg.NewOperatorConditionsGauge("my-operator")
