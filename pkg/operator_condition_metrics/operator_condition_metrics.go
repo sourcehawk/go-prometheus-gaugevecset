@@ -81,12 +81,6 @@ Implementation
     groupLabels = [condition]
     extraLabels = [status, reason]
   Exclusivity is enforced with SetGroup(), which deletes sibling series.
-
-Notes
-  - KIND: In controller-runtime, obj.GetObjectKind().GroupVersionKind().Kind can be empty if
-    GVK wasn't populated. Ensure your scheme is registered and objects are decoded via the client;
-    otherwise, resolve Kind via the scheme (scheme.ObjectKinds(obj)).
-  - Cluster-scoped: namespace label is set to the empty string "".
 */
 
 const (
@@ -108,12 +102,12 @@ type OperatorConditionsGauge struct {
 // NewOperatorConditionsGauge creates a new OperatorConditionsGauge for an operator.
 // Initialize once (e.g., in your package init or setup)
 //
-//		var OperatorConditionsGauge *OperatorConditionsGauge = nil
+//	var OperatorConditionsGauge *OperatorConditionsGauge = nil
 //
-//		func init() {
-//	     OperatorConditionsGauge = NewOperatorConditionsGauge("my-operator")
-//			controllermetrics.Registry.MustRegister(OperatorConditionsGauge)
-//		}
+//	func init() {
+//	  OperatorConditionsGauge = NewOperatorConditionsGauge("my-operator")
+//	  controllermetrics.Registry.MustRegister(OperatorConditionsGauge)
+//	}
 func NewOperatorConditionsGauge(metricNamespace string) *OperatorConditionsGauge {
 	return &OperatorConditionsGauge{
 		metrics.NewGaugeVecSet(
@@ -136,27 +130,23 @@ type ObjectLike interface {
 // ConditionMetricRecorder records metrics for Kubernetes style `metav1.Condition`
 // objects on custom resources, using a Prometheus gauge.
 //
-// It is intended for use in controller implementations that expose CRD conditions
-// (e.g., Ready, Reconciled, Synchronized).
-//
 // Usage:
 //
 // Embed in your custom recorder or reconciler
 //
 //		type MyRecorder struct {
-//			metrics.ConditionMetricRecorder
+//			gvs.ConditionMetricRecorder
 //		}
 //
 //		r := MyControllerRecorder{
-//			 ConditionMetricRecorder: metrics.ConditionMetricRecorder{
+//			 ConditionMetricRecorder: gvs.ConditionMetricRecorder{
 //				 Controller: "my-controller",
-//	          OperatorConditionsGauge: OperatorConditionsGauge,
+//	          OperatorConditionsGauge: my_metrics.OperatorConditionsGauge,
 //			 },
 //		}
 //
-//		r.RecordConditionFor(myObj, condition)
-//		r.SetStatusCondition(myObj, &myObj.Status.Conditions, condition) // wrapper for meta.SetStatusCondition
-//		r.RemoveConditionsFor(myObj)
+//		r.RecordConditionFor(kind, obj, cond.Type, string(cond.Status), cond.Reason)
+//		r.RemoveConditionsFor(kind, obj)
 type ConditionMetricRecorder struct {
 	// The name of the controller the condition metrics are for
 	Controller string
@@ -181,11 +171,7 @@ type ConditionMetricRecorder struct {
 //
 // Example:
 //
-//	r.RecordConditionFor(obj, metav1.Condition{
-//	    Type:   "Ready",
-//	    Status: metav1.ConditionFalse,
-//	    Reason: "KeyAuthorizationError",
-//	})
+//	r.RecordConditionFor(kind, obj, "Ready", "True", "AppReady")
 func (r *ConditionMetricRecorder) RecordConditionFor(
 	kind string, object ObjectLike, conditionType, conditionStatus, conditionReason string,
 ) {
