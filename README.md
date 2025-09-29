@@ -147,6 +147,8 @@ operator_controller_condition{controller="", kind="", name="", namespace="", con
 
 The metric should be initialized and registered once.
 
+You can embed the `ControllerMetricsRecorder` in your controller's recorder.
+
 ```go
 package my_metrics
 
@@ -162,23 +164,15 @@ func init() {
     OperatorConditionsGauge = ocg.NewOperatorConditionsGauge("my-operator")
     controllermetrics.Registry.MustRegister(OperatorConditionsGauge)
 }
-```
 
-You can embed the `ControllerMetricsRecorder` in your controller's recorder as such:
-
-```go
-package my_metrics
-
-import (
-    ocg "github.com/sourcehawk/go-prometheus-gaugevecset/pkg/operator_condition_metrics"
-)
-
+// Embed in existing metrics recorder
 type MyControllerRecorder struct {
-    ocg.ConditionMetricRecorder
+	ocg.ConditionMetricRecorder
 }
 ```
 
-Constructing your reconcilers:
+When constructing your reconciler, initialize the condition metrics recorder with the
+operator conditions gauge and a unique name for each controller.
 
 ```go
 package main
@@ -206,7 +200,7 @@ func main() {
 
 ## Usage
 
-To use the recorder to create metrics, the easiest drop-in way to use it is with `SetStatusCondition`, which 
+The easiest drop-in way to start using the metrics recorder it with `SetStatusCondition`, which 
 comes instead of `meta.SetStatusCondition`.
 
 To delete the metrics for a given custom resource, simply call `RemoveConditionsFor` and pass the object.
@@ -238,4 +232,4 @@ func (r *MyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 ```
 
 You can also use `RecordConditionFor` for more flexible metric recording without updating the custom resource's status 
-conditions, but generally, the `SetStatusCondition` is commonly used in controllers and should therefore be preferred.
+conditions, but generally, the `SetStatusCondition` is commonly used in controllers and should be preferred.
