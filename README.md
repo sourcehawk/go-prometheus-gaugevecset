@@ -248,7 +248,7 @@ func (r *MyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
     }
 	
     // Remove the metrics when the CR is deleted
-    if cr.DeletionTimeStamp != nil {
+    if cr.DeletionTimestamp != nil {
         r.Recorder.RemoveConditionsFor(kind, cr)
     }
 	
