@@ -1,6 +1,8 @@
 package operator_condition_metrics
 
 import (
+	"time"
+
 	metrics "github.com/sourcehawk/go-prometheus-gaugevecset/pkg/gauge_vec_set"
 )
 
@@ -15,7 +17,8 @@ and marking exactly one as active (1) while the others are inactive (0). Example
   kube_pod_status_phase{namespace="default", pod="nginx", phase="Failed"}  0
 
 We adopt the same pattern for controller Conditions, but we export one time series per (status, reason) variant
-and enforce **exclusivity per condition**.
+and enforce **exclusivity per condition**. The value of the metric we set is also the last transition time of the
+condition.
 
 For any given (controller, kind, name, namespace, condition) exactly one (status, reason) series is present at a time.
 All other variants are **deleted**. This keeps cardinality under control.
@@ -33,7 +36,7 @@ Labels (order matches registration)
   - reason:     		 short machine-typed reason (often "" when status="True")
 
 Value
-  - Always 1 for the single active (status, reason) series in the group.
+  - The timestamp of last transition time for the condition
 
 Examples:
 
@@ -47,7 +50,7 @@ Examples:
     condition="Ready",
     status="True",
     reason=""
-  } 1
+  } 1759174202
 
 (Other status/reason variants for this condition are removed.)
 
@@ -60,7 +63,7 @@ Examples:
     condition="Ready",
     status="False",
     reason="Failed"
-  } 1
+  } 1759174205
 
 3. Another condition can be active simultaneously (different group):
 
@@ -69,7 +72,7 @@ Examples:
     condition="Synchronized",
     status="True",
     reason=""
-  } 1
+  } 17591743210
 
 Cleanup
   When the resource is deleted/pruned, all series for its index key
@@ -157,7 +160,9 @@ type ConditionMetricRecorder struct {
 // RecordConditionFor sets a condition metric for a given controller and object.
 //
 // It enforces exclusivity within the same (controller, name, namespace, condition) group,
-// ensuring that only the latest status (True/False/Unknown) is present for a given condition type.
+// ensuring that only the latest (status, phase) is present for a given condition type.
+//
+// If the lastTransitionTime is zero, the value of the metric is set to the unix timestamp for time.Now().UTC()
 //
 // The following label values are set:
 //
@@ -171,15 +176,20 @@ type ConditionMetricRecorder struct {
 //
 // Example:
 //
-//	r.RecordConditionFor(kind, obj, "Ready", "True", "AppReady")
+//	r.RecordConditionFor(kind, obj, "Ready", "True", "AppReady", lastTransitionTime)
 func (r *ConditionMetricRecorder) RecordConditionFor(
-	kind string, object ObjectLike, conditionType, conditionStatus, conditionReason string,
+	kind string, object ObjectLike,
+	conditionType, conditionStatus, conditionReason string, lastTransitionTime time.Time,
 ) {
 	indexValues := []string{r.Controller, kind, object.GetName(), object.GetNamespace()}
 	groupValues := []string{conditionType}
 	extraValues := []string{conditionStatus, conditionReason}
 
-	r.OperatorConditionsGauge.SetGroup(1, indexValues, groupValues, extraValues...)
+	if lastTransitionTime.IsZero() {
+		lastTransitionTime = time.Now().UTC()
+	}
+
+	r.OperatorConditionsGauge.SetGroup(float64(lastTransitionTime.Unix()), indexValues, groupValues, extraValues...)
 }
 
 // RemoveConditionsFor deletes all condition metrics for a given resource.

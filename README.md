@@ -134,6 +134,8 @@ kube_pod_status_phase{namespace="default", pod="nginx", phase="Failed"}  0
 
 We adopt the same pattern for controller Conditions, but we export only one time series per (status, reason) variant, 
 meaning we delete all other variants in the group when we set the metric, ensuring the cardinality stays under control.
+Additionally, rather than return 1/0 indicating the activeness of the metric, we set the last transition time of the
+condition as the value (unix timestamp).
 
 Example metric:
 
@@ -146,12 +148,13 @@ operator_controller_condition{
     condition="Ready",
     status="False",
     reason="FailedToProvision"
-} 1
+} 17591743210
 ```
 
 - **Index**: controller, resource_kind, resource_name, resource_namespace
 - **Group**: condition
 - **Extra**: status, reason
+- **Metric Value**: Unix timestamp of last transition of given condition
 
 ### Initialization
 
@@ -223,10 +226,12 @@ const (
 )
 
 // SetStatusCondition utility function which replaces and wraps meta.SetStatusCondition calls
-func (r *MyReconciler) SetStatusCondition(cr *v1.MyCR, condition metav1.Condition) bool {
-    changed := meta.SetStatusCondition(&cr.Status.Conditions, condition)
+func (r *MyReconciler) SetStatusCondition(cr *v1.MyCR, cond metav1.Condition) bool {
+    changed := meta.SetStatusCondition(&cr.Status.Conditions, cond)
     if changed {
-        r.Recorder.RecordConditionFor(kind, cr, condition.Type, string(condition.Status), condition.Reason)
+        r.Recorder.RecordConditionFor(
+            kind, cr, cond.Type, string(cond.Status), cond.Reason, cond.LastTransitionTime,
+        )
     }
     return changed
 }

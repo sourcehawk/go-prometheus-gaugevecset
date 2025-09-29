@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
@@ -65,6 +66,7 @@ func createBenchmarkScenario(tb testing.TB, registry *prometheus.Registry) *Cond
 	}
 
 	obj := &FakeObject{}
+	transitionTime := time.Now().UTC()
 
 	condition := &FakeCondition{
 		Status: "True", // doesn't matter, cardinality decided by Reason
@@ -82,7 +84,7 @@ func createBenchmarkScenario(tb testing.TB, registry *prometheus.Registry) *Cond
 
 				for v := 0; v < variantsPerCondition; v++ {
 					condition.Reason = generatedName("variant", v)
-					rec.RecordConditionFor(kind, obj, condition.Type, condition.Reason, condition.Reason)
+					rec.RecordConditionFor(kind, obj, condition.Type, condition.Reason, condition.Reason, transitionTime)
 				}
 			}
 		}
@@ -106,6 +108,7 @@ func Benchmark_ConditionMetricsRecorder_TimePerCall(b *testing.B) {
 		Name:      "Resource0",
 		Namespace: "namespace0",
 	}
+	transitionTime := time.Now().UTC()
 
 	// Two variants in the same (controller,kind,name,namespace,condition) group.
 	condTrue := &FakeCondition{
@@ -126,9 +129,9 @@ func Benchmark_ConditionMetricsRecorder_TimePerCall(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			// Flip between two variants
 			if (i & 1) == 0 {
-				rec.RecordConditionFor(kind, obj, condTrue.Type, condTrue.Status, condTrue.Reason)
+				rec.RecordConditionFor(kind, obj, condTrue.Type, condTrue.Status, condTrue.Reason, transitionTime)
 			} else {
-				rec.RecordConditionFor(kind, obj, condFalse.Type, condFalse.Status, condFalse.Reason)
+				rec.RecordConditionFor(kind, obj, condFalse.Type, condFalse.Status, condFalse.Reason, transitionTime)
 			}
 		}
 	})
@@ -140,7 +143,7 @@ func Benchmark_ConditionMetricsRecorder_TimePerCall(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			// Ensure there is something to remove, but do not count the set time.
 			b.StopTimer()
-			rec.RecordConditionFor(kind, obj, condTrue.Type, condTrue.Status, condTrue.Reason)
+			rec.RecordConditionFor(kind, obj, condTrue.Type, condTrue.Status, condTrue.Reason, transitionTime)
 			b.StartTimer()
 
 			rec.RemoveConditionsFor(kind, obj)
