@@ -133,13 +133,21 @@ kube_pod_status_phase{namespace="default", pod="nginx", phase="Failed"}  0
 We adopt the same pattern for controller Conditions, but we export only one time series per (status, reason) variant, 
 meaning we delete all other variants in the group when we set the metric, ensuring the cardinality stays under control.
 
-Example:
+Example metric:
 
 ```
-operator_controller_condition{controller="", kind="", name="", namespace="", condition="", status="", reason=""} 1
+operator_controller_condition{
+    controller="my_controller",
+    resource_kind="MyCR",
+    resource_name="my-cr",
+    resource_namespace="default",
+    condition="Ready",
+    status="False",
+    reason="FailedToProvision"
+} 1
 ```
 
-- **Index**: controller, kind, name, namespace
+- **Index**: controller, resource_kind, resource_name, resource_namespace
 - **Group**: condition
 - **Extra**: status, reason
 
