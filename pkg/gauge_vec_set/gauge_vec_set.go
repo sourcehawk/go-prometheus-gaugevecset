@@ -66,7 +66,7 @@ type GaugeVecSet struct {
 // Returns an *unregistered* collector; register it with a Prometheus registry yourself.
 // Example:
 //
-//	col := NewGaugeVecSet(ns, sub, "condition", help, []string{"controller","name","namespace"}, []string{"condition"}, []string{"status","reason"})
+//	col := NewGaugeVecSet(ns, sub, name, help, []string{"namespace"}, []string{"pod"}, []string{"phase"})
 //	prometheus.MustRegister(col)
 func NewGaugeVecSet(
 	namespace, subsystem, name, help string,
@@ -281,7 +281,7 @@ func (c *GaugeVecSet) cacheWithKeys(indexKey, groupKey, fullKey string) {
 }
 
 // Set assigns the Gauge value for the series identified by (index, group)
-// This does not modify sibling series. Use SetExclusiveInGroup or SetActiveInGroup to enforce enum-like exclusivity.
+// This does not modify sibling series. Use SetGroup or SetActiveInGroup to enforce exclusivity on the group level.
 func (c *GaugeVecSet) Set(
 	value float64,
 	indexValues []string,
