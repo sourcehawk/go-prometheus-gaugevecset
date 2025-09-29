@@ -3,6 +3,7 @@ package operator_condition_metrics
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
@@ -30,23 +31,25 @@ func TestConditionMetricRecorder_Record_Transition_And_SecondCondition(t *testin
 	kind := "MyCRD"
 	name := "cr-1"
 	ns := "prod"
+	transitionTime := time.Date(2025, time.January, 1, 0, 0, 0, 0, time.UTC)
+
 	obj := makeObj(name, ns)
 
 	// Record Ready=True
-	rec.RecordConditionFor(kind, obj, "Ready", "True", "")
+	rec.RecordConditionFor(kind, obj, "Ready", "True", "", transitionTime)
 
 	// Flip Ready -> False with reason
-	rec.RecordConditionFor(kind, obj, "Ready", "False", "Failed")
+	rec.RecordConditionFor(kind, obj, "Ready", "False", "Failed", transitionTime)
 
 	// Another condition Synchronized=True (independent group)
-	rec.RecordConditionFor(kind, obj, "Synchronized", "True", "")
+	rec.RecordConditionFor(kind, obj, "Synchronized", "True", "", transitionTime)
 
 	// Expect: Ready False(reason)=1, Synchronized True=1
 	want := `
 # HELP test_record_transition_and_second_condition_controller_condition Condition status for a custom resource; one active (status,reason) time series per (controller,kind,name,namespace,condition).
 # TYPE test_record_transition_and_second_condition_controller_condition gauge
-test_record_transition_and_second_condition_controller_condition{condition="Ready",controller="my-controller",reason="Failed",resource_kind="MyCRD",resource_name="cr-1",resource_namespace="prod",status="False"} 1
-test_record_transition_and_second_condition_controller_condition{condition="Synchronized",controller="my-controller",reason="",resource_kind="MyCRD",resource_name="cr-1",resource_namespace="prod",status="True",} 1
+test_record_transition_and_second_condition_controller_condition{condition="Ready",controller="my-controller",reason="Failed",resource_kind="MyCRD",resource_name="cr-1",resource_namespace="prod",status="False"} 1735689600
+test_record_transition_and_second_condition_controller_condition{condition="Synchronized",controller="my-controller",reason="",resource_kind="MyCRD",resource_name="cr-1",resource_namespace="prod",status="True",} 1735689600
 `
 	require.NoError(t,
 		testutil.GatherAndCompare(
@@ -72,10 +75,11 @@ func TestConditionMetricRecorder_RemoveConditionsFor(t *testing.T) {
 	kind := "MyCRD"
 	name := "cr-2"
 	ns := "staging"
+	transitionTime := time.Date(2025, time.January, 1, 0, 0, 0, 0, time.UTC)
 	obj := makeObj(name, ns)
 
-	rec.RecordConditionFor(kind, obj, "Ready", "True", "")
-	rec.RecordConditionFor(kind, obj, "Synchronized", "False", "SyncPending")
+	rec.RecordConditionFor(kind, obj, "Ready", "True", "", transitionTime)
+	rec.RecordConditionFor(kind, obj, "Synchronized", "False", "SyncPending", transitionTime)
 
 	// Remove all condition series for this object
 	removed := rec.RemoveConditionsFor(kind, obj)
@@ -103,16 +107,17 @@ func TestConditionMetricRecorder_SetsKindLabelFromObject(t *testing.T) {
 	kind := "FancyKind"
 	name := "obj-1"
 	ns := "ns-1"
+	transitionTime := time.Date(2025, time.January, 1, 0, 0, 0, 0, time.UTC)
 	obj := makeObj(name, ns)
 
 	// Record a condition
-	rec.RecordConditionFor(kind, obj, "Ready", "True", "")
+	rec.RecordConditionFor(kind, obj, "Ready", "True", "", transitionTime)
 
 	// Expect the 'kind' label to reflect the object's Kind
 	want := `
 # HELP test_sets_kind_label_from_object_controller_condition Condition status for a custom resource; one active (status,reason) time series per (controller,kind,name,namespace,condition).
 # TYPE test_sets_kind_label_from_object_controller_condition gauge
-test_sets_kind_label_from_object_controller_condition{condition="Ready",controller="my-controller",reason="",resource_kind="FancyKind",resource_name="obj-1",resource_namespace="ns-1",status="True"} 1
+test_sets_kind_label_from_object_controller_condition{condition="Ready",controller="my-controller",reason="",resource_kind="FancyKind",resource_name="obj-1",resource_namespace="ns-1",status="True"} 1735689600
 `
 	require.NoError(t,
 		testutil.GatherAndCompare(
