@@ -14,7 +14,7 @@ and marking exactly one as active (1) while the others are inactive (0). Example
   kube_pod_status_phase{namespace="default", pod="nginx", phase="Pending"} 0
   kube_pod_status_phase{namespace="default", pod="nginx", phase="Failed"}  0
 
-We adopt the same pattern for controller Conditions but we export one time series per (status, reason) variant
+We adopt the same pattern for controller Conditions, but we export one time series per (status, reason) variant
 and enforce **exclusivity per condition**.
 
 For any given (controller, kind, name, namespace, condition) exactly one (status, reason) series is present at a time.
@@ -24,13 +24,13 @@ Metric
   <namespace>_controller_condition
 
 Labels (order matches registration)
-  - controller: controller name (e.g., "my-operator")
-  - kind:       resource kind (e.g., "MyCRD")
-  - name:       resource name
-  - namespace:  resource namespace ("" for cluster-scoped)
-  - condition:  condition type (e.g., "Ready", "Reconciled")
-  - status:     "True" | "False" | "Unknown"
-  - reason:     short machine-typed reason (often "" when status="True")
+  - controller: 		 controller name (e.g., "my-operator")
+  - resource_kind:       resource kind (e.g., "MyCRD")
+  - resource_name:       resource name
+  - resource_namespace:  resource namespace ("" for cluster-scoped)
+  - condition:  		 condition type (e.g., "Ready", "Reconciled")
+  - status:     		 "True" | "False" | "Unknown"
+  - reason:     		 short machine-typed reason (often "" when status="True")
 
 Value
   - Always 1 for the single active (status, reason) series in the group.
@@ -41,9 +41,9 @@ Examples:
 
   my_controller_condition{
     controller="my-operator",
-    kind="MyCRD",
-    name="my-cr-1",
-    namespace="prod",
+    resource_kind="MyCRD",
+    resource_name="my-cr-1",
+    resource_namespace="prod",
     condition="Ready",
     status="True",
     reason=""
@@ -73,11 +73,11 @@ Examples:
 
 Cleanup
   When the resource is deleted/pruned, all series for its index key
-  (controller, kind, name, namespace) are removed via DeleteByIndex().
+  (controller, kind, resource_name, resource_namespace) are removed via DeleteByIndex().
 
 Implementation
   Backed by a GaugeVecSet with:
-    indexLabels = [controller, kind, name, namespace]
+    indexLabels = [controller, resource_kind, resource_name, resource_namespace]
     groupLabels = [condition]
     extraLabels = [status, reason]
   Exclusivity is enforced with SetGroup(), which deletes sibling series.
@@ -90,7 +90,7 @@ const (
 )
 
 var (
-	indexLabels = []string{"controller", "kind", "name", "namespace"}
+	indexLabels = []string{"controller", "resource_kind", "resource_name", "resource_namespace"}
 	groupLabels = []string{"condition"}
 	extraLabels = []string{"status", "reason"}
 )
