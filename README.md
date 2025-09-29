@@ -200,12 +200,25 @@ func main() {
 
 ## Usage
 
-The easiest drop-in way to start using the metrics recorder it with `SetStatusCondition`, which 
+The easiest drop-in way to start using the metrics recorder is by creating a `SetStatusCondition` wrapper, which 
 comes instead of `meta.SetStatusCondition`.
 
 To delete the metrics for a given custom resource, simply call `RemoveConditionsFor` and pass the object.
 
 ```go
+const (
+    kind = "MyCr"
+)
+
+// SetStatusCondition utility function which replaces and wraps meta.SetStatusCondition calls
+func (r *MyReconciler) SetStatusCondition(cr *v1.MyCR, condition metav1.Condition) bool {
+    changed = meta.SetStatusCondition(&cr.Status.Conditions, condition)
+    if changed {
+        r.RecordConditionFor(kind, cr, condition.Type, string(condition.Status), condition.Reason)
+    }
+    return changed
+}
+
 func (r *MyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
     // Get the resource we're reconciling
     cr := new(v1.MyCR)
@@ -215,13 +228,13 @@ func (r *MyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	
     // Remove the metrics when the CR is deleted
     if cr.DeletionTimeStamp != nil {
-        r.Recorder.RemoveConditionsFor(cr)
+        r.Recorder.RemoveConditionsFor(kind, cr)
     }
 	
     // ...
 	
     // Update the status conditions using the recorder (it records the metric if changed)
-    if r.Recorder.SetStatusCondition(cr, &cr.Status.Conditions, condition) {
+    if r.SetStatusCondition(cr, condition) {
         if err = r.Status().Update(ctx, cr); err != nil {
             return ctrl.Result{}, err
         }
@@ -230,6 +243,3 @@ func (r *MyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
     return ctrl.Result{}, nil
 }
 ```
-
-You can also use `RecordConditionFor` for more flexible metric recording without updating the custom resource's status 
-conditions, but generally, the `SetStatusCondition` is commonly used in controllers and should be preferred.

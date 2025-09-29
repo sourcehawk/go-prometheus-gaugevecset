@@ -4,33 +4,25 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	controllermetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 // helper: make a minimal client.Object with Kind/Name/Namespace set.
 // metav1.PartialObjectMetadata satisfies client.Object and lets us set GVK.
-func makeObj(kind, name, namespace string) *metav1.PartialObjectMetadata {
-	obj := &metav1.PartialObjectMetadata{
-		TypeMeta: metav1.TypeMeta{
-			Kind: kind,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+func makeObj(name, namespace string) *FakeObject {
+	return &FakeObject{
+		Name:      name,
+		Namespace: namespace,
 	}
-	// Set Kind explicitly (GetObjectKind().GroupVersionKind().Kind reads this)
-	obj.GetObjectKind().SetGroupVersionKind(metav1.SchemeGroupVersion.WithKind(kind))
-	return obj
 }
 
 func TestConditionMetricRecorder_Record_Transition_And_SecondCondition(t *testing.T) {
 	gauge := NewOperatorConditionsGauge("test_record_transition_and_second_condition")
-	_ = controllermetrics.Registry.Register(gauge)
+	reg := prometheus.NewRegistry()
+	_ = reg.Register(gauge)
 
 	// Arrange
 	rec := &ConditionMetricRecorder{
@@ -40,28 +32,16 @@ func TestConditionMetricRecorder_Record_Transition_And_SecondCondition(t *testin
 	kind := "MyCRD"
 	name := "cr-1"
 	ns := "prod"
-	obj := makeObj(kind, name, ns)
+	obj := makeObj(name, ns)
 
 	// Record Ready=True
-	rec.RecordConditionFor(obj, metav1.Condition{
-		Type:   "Ready",
-		Status: metav1.ConditionTrue,
-		Reason: "",
-	})
+	rec.RecordConditionFor(kind, obj, "Ready", "True", "")
 
 	// Flip Ready -> False with reason
-	rec.RecordConditionFor(obj, metav1.Condition{
-		Type:   "Ready",
-		Status: metav1.ConditionFalse,
-		Reason: "Failed",
-	})
+	rec.RecordConditionFor(kind, obj, "Ready", "False", "Failed")
 
 	// Another condition Synchronized=True (independent group)
-	rec.RecordConditionFor(obj, metav1.Condition{
-		Type:   "Synchronized",
-		Status: metav1.ConditionTrue,
-		Reason: "",
-	})
+	rec.RecordConditionFor(kind, obj, "Synchronized", "True", "")
 
 	// Expect: Ready False(reason)=1, Synchronized True=1
 	want := `
@@ -72,19 +52,20 @@ test_record_transition_and_second_condition_controller_condition{condition="Sync
 `
 	require.NoError(t,
 		testutil.GatherAndCompare(
-			controllermetrics.Registry,
+			reg,
 			strings.NewReader(want),
 			"test_record_transition_and_second_condition_controller_condition",
 		),
 	)
 
-	removed := rec.RemoveConditionsFor(obj)
+	removed := rec.RemoveConditionsFor(kind, obj)
 	assert.Equal(t, 2, removed)
 }
 
 func TestConditionMetricRecorder_RemoveConditionsFor(t *testing.T) {
 	gauge := NewOperatorConditionsGauge("test_remove_conditions_for_condition")
-	_ = controllermetrics.Registry.Register(gauge)
+	reg := prometheus.NewRegistry()
+	_ = reg.Register(gauge)
 	// Arrange
 	rec := &ConditionMetricRecorder{
 		Controller:              "my-controller",
@@ -93,26 +74,19 @@ func TestConditionMetricRecorder_RemoveConditionsFor(t *testing.T) {
 	kind := "MyCRD"
 	name := "cr-2"
 	ns := "staging"
-	obj := makeObj(kind, name, ns)
+	obj := makeObj(name, ns)
 
-	rec.RecordConditionFor(obj, metav1.Condition{
-		Type:   "Ready",
-		Status: metav1.ConditionTrue,
-	})
-	rec.RecordConditionFor(obj, metav1.Condition{
-		Type:   "Synchronized",
-		Status: metav1.ConditionFalse,
-		Reason: "SyncPending",
-	})
+	rec.RecordConditionFor(kind, obj, "Ready", "True", "")
+	rec.RecordConditionFor(kind, obj, "Synchronized", "False", "SyncPending")
 
 	// Remove all condition series for this object
-	removed := rec.RemoveConditionsFor(obj)
+	removed := rec.RemoveConditionsFor(kind, obj)
 	assert.Equal(t, 2, removed)
 
 	// No series remain for this object
 	require.NoError(t,
 		testutil.GatherAndCompare(
-			controllermetrics.Registry,
+			reg,
 			strings.NewReader(""),
 			"test_remove_conditions_for_condition_controller_condition",
 		),
@@ -121,7 +95,8 @@ func TestConditionMetricRecorder_RemoveConditionsFor(t *testing.T) {
 
 func TestConditionMetricRecorder_SetsKindLabelFromObject(t *testing.T) {
 	gauge := NewOperatorConditionsGauge("test_sets_kind_label_from_object")
-	_ = controllermetrics.Registry.Register(gauge)
+	reg := prometheus.NewRegistry()
+	_ = reg.Register(gauge)
 	ctrl := "my-controller"
 	rec := &ConditionMetricRecorder{
 		Controller:              ctrl,
@@ -130,13 +105,10 @@ func TestConditionMetricRecorder_SetsKindLabelFromObject(t *testing.T) {
 	kind := "FancyKind"
 	name := "obj-1"
 	ns := "ns-1"
-	obj := makeObj(kind, name, ns)
+	obj := makeObj(name, ns)
 
 	// Record a condition
-	rec.RecordConditionFor(obj, metav1.Condition{
-		Type:   "Ready",
-		Status: metav1.ConditionTrue,
-	})
+	rec.RecordConditionFor(kind, obj, "Ready", "True", "")
 
 	// Expect the 'kind' label to reflect the object's Kind
 	want := `
@@ -146,7 +118,7 @@ test_sets_kind_label_from_object_controller_condition{condition="Ready",controll
 `
 	require.NoError(t,
 		testutil.GatherAndCompare(
-			controllermetrics.Registry,
+			reg,
 			strings.NewReader(want),
 			"test_sets_kind_label_from_object_controller_condition",
 		),

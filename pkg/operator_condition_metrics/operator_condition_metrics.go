@@ -2,9 +2,6 @@ package operator_condition_metrics
 
 import (
 	metrics "github.com/sourcehawk/go-prometheus-gaugevecset/pkg/gauge_vec_set"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 /*
@@ -131,6 +128,11 @@ func NewOperatorConditionsGauge(metricNamespace string) *OperatorConditionsGauge
 	}
 }
 
+type ObjectLike interface {
+	GetName() string
+	GetNamespace() string
+}
+
 // ConditionMetricRecorder records metrics for Kubernetes style `metav1.Condition`
 // objects on custom resources, using a Prometheus gauge.
 //
@@ -185,51 +187,13 @@ type ConditionMetricRecorder struct {
 //	    Reason: "KeyAuthorizationError",
 //	})
 func (r *ConditionMetricRecorder) RecordConditionFor(
-	object client.Object, condition metav1.Condition,
+	kind string, object ObjectLike, conditionType, conditionStatus, conditionReason string,
 ) {
-	kind := object.GetObjectKind().GroupVersionKind().Kind
 	indexValues := []string{r.Controller, kind, object.GetName(), object.GetNamespace()}
-	groupValues := []string{condition.Type}
-	extraValues := []string{string(condition.Status), condition.Reason}
+	groupValues := []string{conditionType}
+	extraValues := []string{conditionStatus, conditionReason}
 
 	r.OperatorConditionsGauge.SetGroup(1, indexValues, groupValues, extraValues...)
-}
-
-// SetStatusCondition sets a condition on the object's status using the Kubernetes
-// helper `meta.SetStatusCondition`, and records the corresponding Prometheus metric
-// if the condition was changed.
-//
-// It is a convenience wrapper that ensures metrics and status conditions stay in sync.
-//
-// Parameters:
-//   - object:     the Kubernetes object (used to extract name, namespace, kind).
-//     this is the object the condition is tied to in the controller reconciler.
-//   - conditions: pointer to the object's `.Status.Conditions` slice
-//   - condition:  the metav1.Condition to set
-//
-// Returns:
-//   - changed: true if the condition slice was modified
-//
-// Example:
-//
-//	changed := r.SetStatusCondition(
-//	    obj,
-//	    &obj.Status.Conditions,
-//	    metav1.Condition{
-//	        Type:   "Ready",
-//	        Status: metav1.ConditionTrue,
-//	        Reason: "SuccessfullyReconciled",
-//	        Message: "The resource is ready.",
-//	    },
-//	)
-func (r *ConditionMetricRecorder) SetStatusCondition(
-	object client.Object, conditions *[]metav1.Condition, condition metav1.Condition,
-) (changed bool) {
-	changed = meta.SetStatusCondition(conditions, condition)
-	if changed {
-		r.RecordConditionFor(object, condition)
-	}
-	return changed
 }
 
 // RemoveConditionsFor deletes all condition metrics for a given resource.
@@ -237,7 +201,6 @@ func (r *ConditionMetricRecorder) SetStatusCondition(
 //
 // Typically called when the object is deleted or no longer relevant to the controller (Deletion reconcile).
 // Returns the number of time series deleted.
-func (r *ConditionMetricRecorder) RemoveConditionsFor(object client.Object) (removed int) {
-	kind := object.GetObjectKind().GroupVersionKind().Kind
+func (r *ConditionMetricRecorder) RemoveConditionsFor(kind string, object ObjectLike) (removed int) {
 	return r.OperatorConditionsGauge.DeleteByIndex(r.Controller, kind, object.GetName(), object.GetNamespace())
 }

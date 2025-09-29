@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	controllermetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 /*
@@ -32,14 +30,33 @@ func generatedName(prefix string, i int) string {
 	return fmt.Sprintf("%s%d", prefix, i)
 }
 
-func createBenchmarkScenario(tb testing.TB) *ConditionMetricRecorder {
+type FakeObject struct {
+	Name      string
+	Namespace string
+}
+
+func (f *FakeObject) GetName() string {
+	return f.Name
+}
+
+func (f *FakeObject) GetNamespace() string {
+	return f.Namespace
+}
+
+type FakeCondition struct {
+	Type   string
+	Status string
+	Reason string
+}
+
+func createBenchmarkScenario(tb testing.TB, registry *prometheus.Registry) *ConditionMetricRecorder {
 	tb.Helper()
 
 	ns := "bench_ns_" + generatedName("", tb.(*testing.B).N)
 	gauge := NewOperatorConditionsGauge(ns)
-	_ = controllermetrics.Registry.Register(gauge)
+	_ = registry.Register(gauge)
 	tb.Cleanup(func() {
-		controllermetrics.Registry.Unregister(gauge)
+		registry.Unregister(gauge)
 	})
 
 	rec := &ConditionMetricRecorder{
@@ -47,30 +64,25 @@ func createBenchmarkScenario(tb testing.TB) *ConditionMetricRecorder {
 		OperatorConditionsGauge: gauge,
 	}
 
-	obj := &metav1.PartialObjectMetadata{}
-	gvk := schema.GroupVersionKind{
-		Group:   "benchmark.io",
-		Version: "v1",
-		Kind:    "Benchmark",
-	}
-	condition := metav1.Condition{
-		Status: metav1.ConditionTrue, // doesn't matter, cardinality controlled by reason
+	obj := &FakeObject{}
+
+	condition := &FakeCondition{
+		Status: "True", // doesn't matter, cardinality decided by Reason
 	}
 
 	for i := 0; i < controllerCount; i++ {
-		gvk.Kind = generatedName("Controller", i)
-		obj.SetGroupVersionKind(gvk)
+		kind := generatedName("Controller", i)
 
 		for j := 0; j < resourcesPerController; j++ {
-			obj.SetName(generatedName("Resource", j))
-			obj.SetNamespace(generatedName("namespace", j))
+			obj.Name = generatedName("Resource", j)
+			obj.Namespace = generatedName("namespace", j)
 
 			for k := 0; k < conditionsPerController; k++ {
 				condition.Type = generatedName("condition", k)
 
 				for v := 0; v < variantsPerCondition; v++ {
 					condition.Reason = generatedName("variant", v)
-					rec.RecordConditionFor(obj, condition)
+					rec.RecordConditionFor(kind, obj, condition.Type, condition.Reason, condition.Reason)
 				}
 			}
 		}
@@ -85,21 +97,27 @@ func createBenchmarkScenario(tb testing.TB) *ConditionMetricRecorder {
 //
 // Reports: ns/op for each sub-benchmark.
 func Benchmark_ConditionMetricsRecorder_TimePerCall(b *testing.B) {
-	rec := createBenchmarkScenario(b)
+	reg := prometheus.NewRegistry()
+	rec := createBenchmarkScenario(b, reg)
 
 	// Use a stable object that exists in the populated dataset.
-	obj := &metav1.PartialObjectMetadata{}
-	obj.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "benchmark.io",
-		Version: "v1",
-		Kind:    "Controller0",
-	})
-	obj.SetName("Resource0")
-	obj.SetNamespace("namespace0")
+	kind := "Benchmark"
+	obj := &FakeObject{
+		Name:      "Resource0",
+		Namespace: "namespace0",
+	}
 
 	// Two variants in the same (controller,kind,name,namespace,condition) group.
-	condTrue := metav1.Condition{Type: "condition0", Status: metav1.ConditionTrue, Reason: "variant0"}
-	condFalse := metav1.Condition{Type: "condition0", Status: metav1.ConditionFalse, Reason: "variant1"}
+	condTrue := &FakeCondition{
+		Type:   "condition0",
+		Status: "True",
+		Reason: "variant0",
+	}
+	condFalse := &FakeCondition{
+		Type:   "condition0",
+		Status: "False",
+		Reason: "variant0",
+	}
 
 	b.Run("RecordConditionFor", func(b *testing.B) {
 		b.ReportAllocs()
@@ -108,9 +126,9 @@ func Benchmark_ConditionMetricsRecorder_TimePerCall(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			// Flip between two variants
 			if (i & 1) == 0 {
-				rec.RecordConditionFor(obj, condTrue)
+				rec.RecordConditionFor(kind, obj, condTrue.Type, condTrue.Status, condTrue.Reason)
 			} else {
-				rec.RecordConditionFor(obj, condFalse)
+				rec.RecordConditionFor(kind, obj, condFalse.Type, condFalse.Status, condFalse.Reason)
 			}
 		}
 	})
@@ -122,10 +140,10 @@ func Benchmark_ConditionMetricsRecorder_TimePerCall(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			// Ensure there is something to remove, but do not count the set time.
 			b.StopTimer()
-			rec.RecordConditionFor(obj, condTrue)
+			rec.RecordConditionFor(kind, obj, condTrue.Type, condTrue.Status, condTrue.Reason)
 			b.StartTimer()
 
-			rec.RemoveConditionsFor(obj)
+			rec.RemoveConditionsFor(kind, obj)
 		}
 	})
 }
@@ -134,13 +152,14 @@ func Benchmark_ConditionMetricsRecorder_TimePerCall(b *testing.B) {
 //
 // Reports: Metric size in KB retrieved from the registry.
 func Benchmark_ConditionMetricsRecorder_PrometheusMemorySize(b *testing.B) {
-	_ = createBenchmarkScenario(b)
+	reg := prometheus.NewRegistry()
+	_ = createBenchmarkScenario(b, reg)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	b.ReportMetric(float64(maxCardinality), "series/op")
 
-	mfs, err := controllermetrics.Registry.Gather()
+	mfs, err := reg.Gather()
 	if err != nil {
 		b.Fatalf("gather: %v", err)
 	}
