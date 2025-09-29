@@ -29,6 +29,7 @@ const (
     help = "Pod phase (enum-style, one active per Pod)"
 )
 
+// Creating the custom collector
 var PodPhase = gvs.NewGaugeVecSet(
   namespace, subsystem, name, help,
   []string{"namespace"}, // index
@@ -36,6 +37,7 @@ var PodPhase = gvs.NewGaugeVecSet(
   "phase",               // extra (the enum value)
 )
 
+// Register the collector once
 func init() {
   prometheus.MustRegister(PodPhase)
 }
@@ -168,6 +170,7 @@ import (
 // We need this variable later to create the ConditionMetricsRecorder
 var OperatorConditionsGauge *ocg.OperatorConditionsGauge
 
+// Initialize the operator condition gauge once
 func init() {
     OperatorConditionsGauge = ocg.NewOperatorConditionsGauge("my-operator")
     controllermetrics.Registry.MustRegister(OperatorConditionsGauge)
@@ -175,13 +178,14 @@ func init() {
 
 // Embed in existing metrics recorder
 type MyControllerRecorder struct {
-	ocg.ConditionMetricRecorder
+    ocg.ConditionMetricRecorder
 }
 ```
 
 When constructing your reconciler, initialize the condition metrics recorder with the
 operator conditions gauge and a unique name for each controller.
 
+_cmd/main.go_
 ```go
 package main
 
