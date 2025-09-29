@@ -206,15 +206,12 @@ comes instead of `meta.SetStatusCondition`.
 To delete the metrics for a given custom resource, simply call `RemoveConditionsFor` and pass the object.
 
 ```go
-const (
-    kind = "MyCr"
-)
-
 // SetStatusCondition utility function which replaces and wraps meta.SetStatusCondition calls
 func (r *MyReconciler) SetStatusCondition(cr *v1.MyCR, condition metav1.Condition) bool {
-    changed = meta.SetStatusCondition(&cr.Status.Conditions, condition)
+    changed := meta.SetStatusCondition(&cr.Status.Conditions, condition)
+	kind := cr.GetObjectKind().GroupVersionKind().Kind
     if changed {
-        r.RecordConditionFor(kind, cr, condition.Type, string(condition.Status), condition.Reason)
+        r.Recorder.RecordConditionFor(kind, cr, condition.Type, string(condition.Status), condition.Reason)
     }
     return changed
 }
@@ -228,6 +225,7 @@ func (r *MyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	
     // Remove the metrics when the CR is deleted
     if cr.DeletionTimeStamp != nil {
+		kind := cr.GetObjectKind().GroupVersionKind().Kind
         r.Recorder.RemoveConditionsFor(kind, cr)
     }
 	

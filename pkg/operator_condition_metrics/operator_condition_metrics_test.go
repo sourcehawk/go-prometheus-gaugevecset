@@ -47,8 +47,8 @@ func TestConditionMetricRecorder_Record_Transition_And_SecondCondition(t *testin
 	want := `
 # HELP test_record_transition_and_second_condition_controller_condition Condition status for a custom resource; one active (status,reason) time series per (controller,kind,name,namespace,condition).
 # TYPE test_record_transition_and_second_condition_controller_condition gauge
-test_record_transition_and_second_condition_controller_condition{condition="Ready",controller="my-controller",kind="MyCRD",name="cr-1",namespace="prod",reason="Failed",status="False"} 1
-test_record_transition_and_second_condition_controller_condition{condition="Synchronized",controller="my-controller",kind="MyCRD",name="cr-1",namespace="prod",reason="",status="True"} 1
+test_record_transition_and_second_condition_controller_condition{condition="Ready",controller="my-controller",reason="Failed",resource_kind="MyCRD",resource_name="cr-1",resource_namespace="prod",status="False"} 1
+test_record_transition_and_second_condition_controller_condition{condition="Synchronized",controller="my-controller",reason="",resource_kind="MyCRD",resource_name="cr-1",resource_namespace="prod",status="True",} 1
 `
 	require.NoError(t,
 		testutil.GatherAndCompare(
@@ -114,7 +114,7 @@ func TestConditionMetricRecorder_SetsKindLabelFromObject(t *testing.T) {
 	want := `
 # HELP test_sets_kind_label_from_object_controller_condition Condition status for a custom resource; one active (status,reason) time series per (controller,kind,name,namespace,condition).
 # TYPE test_sets_kind_label_from_object_controller_condition gauge
-test_sets_kind_label_from_object_controller_condition{condition="Ready",controller="my-controller",kind="FancyKind",name="obj-1",namespace="ns-1",reason="",status="True"} 1
+test_sets_kind_label_from_object_controller_condition{condition="Ready",controller="my-controller",reason="",resource_kind="FancyKind",resource_name="obj-1",resource_namespace="ns-1",status="True"} 1
 `
 	require.NoError(t,
 		testutil.GatherAndCompare(

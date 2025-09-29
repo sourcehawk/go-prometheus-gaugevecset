@@ -350,6 +350,60 @@ func Test_DynamicGaugeCollector_ArityValidationPanics(t *testing.T) {
 	})
 }
 
+func Test_DynamicGaugeCollector_MetricNamePanics(t *testing.T) {
+	cases := []struct {
+		name       string
+		namespace  string
+		subsystem  string
+		metricName string
+	}{
+		{
+			name:       "invalid namespace contains special characters",
+			namespace:  "n-s",
+			subsystem:  "subsystem",
+			metricName: "name",
+		},
+		{
+			name:       "invalid subsystem contains special characters",
+			namespace:  "namespace",
+			subsystem:  "sub-system",
+			metricName: "name",
+		},
+		{
+			name:       "invalid metric contains special characters",
+			namespace:  "namespace",
+			subsystem:  "subsystem",
+			metricName: "na-me",
+		},
+		{
+			name:       "invalid namespace ends with underscore",
+			namespace:  "namespace_",
+			subsystem:  "subsystem",
+			metricName: "name",
+		},
+		{
+			name:       "invalid subsystem ends with underscore",
+			namespace:  "namespace",
+			subsystem:  "subsystem_",
+			metricName: "name",
+		},
+		{
+			name:       "invalid metric ends with underscore",
+			namespace:  "namespace",
+			subsystem:  "subsystem",
+			metricName: "name_",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Panics(t, func() {
+				NewGaugeVecSet(c.namespace, c.subsystem, c.metricName, "", []string{"index"}, []string{"group"})
+			})
+		})
+	}
+}
+
 func Test_DynamicGaugeCollector_LabelsWithHashCharacters(t *testing.T) {
 	reg := prometheus.NewRegistry()
 

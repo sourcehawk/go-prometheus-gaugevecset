@@ -2,6 +2,7 @@ package gauge_vec_set
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -53,6 +54,26 @@ type GaugeVecSet struct {
 	mu sync.RWMutex
 }
 
+// validateLowercaseUnderscore panics if the input contains any character
+// that is not a lowercase letter or underscore.
+func validateLowercaseUnderscore(input string) {
+	invalidCharPattern := regexp.MustCompile(`[^a-z_]`)
+	if invalidCharPattern.MatchString(input) {
+		panic(
+			fmt.Errorf(
+				"NewGaugeVecSet: %q contains characters other than lowercase letters and underscores", input,
+			),
+		)
+	}
+	if strings.HasSuffix(input, "_") {
+		panic(
+			fmt.Errorf(
+				"NewGaugeVecSet: %q must not end with an underscore", input,
+			),
+		)
+	}
+}
+
 // NewGaugeVecSet constructs a GaugeVecSet.
 //
 // Parameters:
@@ -74,6 +95,10 @@ func NewGaugeVecSet(
 	groupLabels []string,
 	extraLabels ...string,
 ) *GaugeVecSet {
+	validateLowercaseUnderscore(namespace)
+	validateLowercaseUnderscore(subsystem)
+	validateLowercaseUnderscore(name)
+
 	if len(indexLabels) == 0 {
 		panic("NewMultiIndexGaugeCollector: at least one index label is required")
 	}
