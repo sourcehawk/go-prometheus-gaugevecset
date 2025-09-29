@@ -39,8 +39,6 @@ var (
 	groupCount   = []int{2, 4, 8, 16}
 )
 
-// ----------------------- helpers -----------------------
-
 func makeLabelNames(prefix string, n int) []string {
 	out := make([]string, n)
 	for i := 0; i < n; i++ {
@@ -147,7 +145,7 @@ func Benchmark_DynamicGaugeCollector_SetGroup(b *testing.B) {
 		L := labelsCount(idxN, grpN, extN)
 
 		for _, sib := range sibs {
-			// --- cold: measure first-switch cost with many siblings present
+			// cold: measure first-switch cost with many siblings present
 			{
 				// With extN==0, all variants collapse to the same series.
 				coldSeries := sib
@@ -187,7 +185,7 @@ func Benchmark_DynamicGaugeCollector_SetGroup(b *testing.B) {
 					}
 				})
 			}
-			// --- steady: measure typical cost after SetGroup has reduced the group to one series
+			// steady: measure typical cost after SetGroup has reduced the group to one series
 			{
 				const steadySeries = 1
 				name := fmt.Sprintf("idx=%d_grp=%d_ext=%d/siblings=%d/steady",

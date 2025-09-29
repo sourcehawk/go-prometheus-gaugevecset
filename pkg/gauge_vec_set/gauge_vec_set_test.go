@@ -436,11 +436,9 @@ testns_subsys_hashy{cluster="c1",condition="Ready",phase="running",tenant="t1"} 
 	require.NoError(t, testutil.GatherAndCompare(reg, strings.NewReader(""), "testns_subsys_hashy"))
 }
 
-// Uncomment the t.Skip to run the test
 // Run the test 50 times:
 // go test -race ./pkg/metrics -run 'TestDynamicGaugeCollector_ConcurrentSetDelete_NoRace' -count=50
 func Test_DynamicGaugeCollector_ConcurrentSetDelete_NoRace(t *testing.T) {
-	//t.Skip("Skipping race condition test by default")
 	col := NewGaugeVecSet(
 		"concur", "controller", "condition",
 		"concurrency stress test",

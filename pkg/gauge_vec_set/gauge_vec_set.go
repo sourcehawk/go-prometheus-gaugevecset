@@ -55,9 +55,9 @@ type GaugeVecSet struct {
 }
 
 // validateLowercaseUnderscore panics if the input contains any character
-// that is not a lowercase letter or underscore.
+// that is not a lowercase letter, number or underscore.
 func validateLowercaseUnderscore(input string) {
-	invalidCharPattern := regexp.MustCompile(`[^a-z_]`)
+	invalidCharPattern := regexp.MustCompile(`[^a-z0-9_]`)
 	if invalidCharPattern.MatchString(input) {
 		panic(
 			fmt.Errorf(
