@@ -229,9 +229,13 @@ const (
 func (r *MyReconciler) SetStatusCondition(cr *v1.MyCR, cond metav1.Condition) bool {
     changed := meta.SetStatusCondition(&cr.Status.Conditions, cond)
     if changed {
-        r.Recorder.RecordConditionFor(
-            kind, cr, cond.Type, string(cond.Status), cond.Reason, cond.LastTransitionTime,
-        )
+        // refetch the condition to get the updated version
+        updated := meta.FindStatusCondition(cr.Status.Conditions, cond.Type)
+        if updated != nil {
+            r.Recorder.RecordConditionFor(
+                kind, cr, updated.Type, string(updated.Status), updated.Reason, updated.LastTransitionTime,
+            )
+        }
     }
     return changed
 }
