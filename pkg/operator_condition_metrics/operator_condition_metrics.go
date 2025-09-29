@@ -132,21 +132,21 @@ type ObjectLike interface {
 //
 // Usage:
 //
-// Embed in your custom recorder or reconciler
+// # Embed in your custom recorder or reconciler
 //
-//		type MyRecorder struct {
-//			gvs.ConditionMetricRecorder
-//		}
+//	type MyRecorder struct {
+//		gvs.ConditionMetricRecorder
+//	}
 //
-//		r := MyControllerRecorder{
-//			 ConditionMetricRecorder: gvs.ConditionMetricRecorder{
-//				 Controller: "my-controller",
-//	          OperatorConditionsGauge: my_metrics.OperatorConditionsGauge,
-//			 },
-//		}
+//	r := MyControllerRecorder{
+//		ConditionMetricRecorder: gvs.ConditionMetricRecorder{
+//			Controller: "my-controller",
+//			OperatorConditionsGauge: my_metrics.OperatorConditionsGauge,
+//		},
+//	}
 //
-//		r.RecordConditionFor(kind, obj, cond.Type, string(cond.Status), cond.Reason)
-//		r.RemoveConditionsFor(kind, obj)
+//	r.RecordConditionFor(kind, obj, cond.Type, string(cond.Status), cond.Reason)
+//	r.RemoveConditionsFor(kind, obj)
 type ConditionMetricRecorder struct {
 	// The name of the controller the condition metrics are for
 	Controller string
@@ -161,13 +161,13 @@ type ConditionMetricRecorder struct {
 //
 // The following label values are set:
 //
-//   - controller:  the controller name reporting the condition
-//   - kind:        object kind
-//   - name:        object name
-//   - namespace:   object namespace
-//   - condition:   condition type (e.g., "Ready", "Reconciled")
-//   - status:      condition status ("True", "False", "Unknown")
-//   - reason:      short reason string
+//   - controller:  		 the controller name reporting the condition
+//   - resource_kind:        object kind
+//   - resource_name:        object name
+//   - resource_namespace:   object namespace
+//   - condition:   		 condition type (e.g., "Ready", "Reconciled")
+//   - status:      		 condition status ("True", "False", "Unknown")
+//   - reason:      		 short reason string
 //
 // Example:
 //

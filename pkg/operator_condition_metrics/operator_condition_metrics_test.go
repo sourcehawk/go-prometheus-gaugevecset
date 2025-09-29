@@ -10,8 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// helper: make a minimal client.Object with Kind/Name/Namespace set.
-// metav1.PartialObjectMetadata satisfies client.Object and lets us set GVK.
 func makeObj(name, namespace string) *FakeObject {
 	return &FakeObject{
 		Name:      name,
