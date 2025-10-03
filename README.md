@@ -2,10 +2,6 @@
 
 A flexible, memory efficient Prometheus `GaugeVec` wrapper for managing **sets** of metrics.
 
----
-
-## GaugeVecSet
-
 The `GaugeVecSet` is a high-performance wrapper around Prometheus `GaugeVec` that enables bulk operations on series 
 by specified index and grouping labels.
 
@@ -105,13 +101,16 @@ deleted := PodPhase.DeleteByIndex("prod")
 
 ### GaugeVecSet: DeleteByGroup
 
-Delete all series that match the given (index, group)
+Delete all series that match the given (index, group). The number of index and group values this method requires 
+coincides with the number of values the gauge was initialized with, meaning you cannot specify partial values for
+deletion.
 
 ```go
 deleted := PodPhase.DeleteByGroup(
     []string{"prod"}, // index
     "nginx-6f4c",     // group
 )
+<<<<<<< Updated upstream
 ```
 
 ## ConditionMetricsRecorder
@@ -264,3 +263,6 @@ func (r *MyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
     return ctrl.Result{}, nil
 }
 ```
+=======
+```
+>>>>>>> Stashed changes
