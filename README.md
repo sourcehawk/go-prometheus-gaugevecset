@@ -9,12 +9,28 @@ It opens the door for categorizing metrics by labels and sub-labels into sets, a
 that specification, giving us more flexibility when working with dynamic label sets where only higher order labels may 
 be known (or matter).
 
+### Installation
+
+Install the go package
+
+```go
+go get github.com/sourcehawk/go-prometheus-gaugevecset
+```
+
+Importing it:
+
+```go
+import (
+	gvs "github.com/sourcehawk/go-prometheus-gaugevecset/pkg/gauge-vec-set"
+)
+```
+
 ### Initialization
 
 ```go
 import (
   "github.com/prometheus/client_golang/prometheus"
-  gvs "github.com/sourcehawk/go-prometheus-gaugevecset/pkg/gauge_vec_set"
+  gvs "github.com/sourcehawk/go-prometheus-gaugevecset/pkg/gauge-vec-set"
 )
 
 // Metric configuration
