@@ -31,6 +31,14 @@ linters:
       rules:
         - name: comment-spacings
 
+  exclusions:
+    rules:
+      # The label values in a test also appear in its expected exposition
+      # text, which cannot use a constant.
+      - path: _test\.go
+        linters:
+          - goconst
+
 formatters:
   enable:
     - gofmt
