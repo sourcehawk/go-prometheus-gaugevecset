@@ -10,17 +10,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
-          go-version: '1.25.x'
+          go-version-file: .tool-versions
 
-      - name: Install golangci-lint
+      - name: Setup asdf
+        uses: asdf-vm/actions/setup@v4
+
+      # Versions come from .tool-versions so CI and local asdf installs cannot
+      # drift apart, and renovate keeps a single place up to date.
+      # asdf-vm/actions/install installs every tool in .tool-versions, so it
+      # would install Go again on top of setup-go.
+      - name: Install tools with asdf
         run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \
-          | sh -s -- -b $(go env GOPATH)/bin v2.5.0
+          asdf plugin add golangci-lint
+          asdf install golangci-lint
 
       - name: Test
         run: make all
